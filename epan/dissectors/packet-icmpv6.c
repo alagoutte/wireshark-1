@@ -1325,6 +1325,21 @@ static void add_standalone_guint8(proto_tree *tree, int hfindex, guint8 anint)
 }
 
 /* ======================================================================= */
+static void add_standalone_guint16(proto_tree *tree, int hfindex, guint16 anint)
+{
+    tvbuff_t *tvb;
+
+    if ((tvb = tvb_new_real_data((const guint8 *) &anint, 2, 2)) == NULL) {
+        // TODO : log an error
+        return;
+    }
+
+    proto_tree_add_item(tree, hfindex, tvb, 0, 2, ENC_HOST_ENDIAN);
+
+    tvb_free(tvb);
+}
+
+/* ======================================================================= */
 static int
 dissect_contained_icmpv6(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 {
@@ -2310,7 +2325,7 @@ dissect_icmpv6_nd_opt(tvbuff_t *tvb, int offset, packet_info *pinfo, proto_tree 
                 /* PVDID L */
                 add_standalone_guint8(icmp6opt_tree, hf_icmpv6_opt_pvdid_l, l);
                 /* PVDID Reserved */
-                add_standalone_guint8(icmp6opt_tree, hf_icmpv6_opt_pvdid_reserved, reserved);
+                add_standalone_guint16(icmp6opt_tree, hf_icmpv6_opt_pvdid_reserved, reserved);
                 /* PVDID Lifetime */
                 proto_tree_add_item(icmp6opt_tree, hf_icmpv6_opt_pvdid_lifetime, tvb, opt_offset, 4, ENC_BIG_ENDIAN);
                 opt_offset += 4;
