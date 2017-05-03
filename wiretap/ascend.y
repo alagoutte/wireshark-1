@@ -15,13 +15,13 @@
  * before ascend_lex_scanner.h to get YYSTYPE declared.  Using void *
  * breaks the cycle; the Flex documentation says yyscan_t is just a void *.
  */
-%parse-param {void *yyscanner}
-%lex-param {void *yyscanner}
+%parse-param { void *yyscanner }
+%lex-param { void *yyscanner }
 
 /*
  * And we need to pass the parser/scanner state to the parser.
  */
-%parse-param {ascend_state_t *parser_state}
+%parse-param { ascend_state_t *parser_state }
 
 %{
 /* ascend.y
