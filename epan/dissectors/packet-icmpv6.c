@@ -247,6 +247,13 @@ static int hf_icmpv6_opt_6cio_unassigned1 = -1;
 static int hf_icmpv6_opt_6cio_flag_g = -1;
 static int hf_icmpv6_opt_6cio_unassigned2 = -1;
 
+static int hf_icmpv6_opt_pvdid = -1;
+static int hf_icmpv6_opt_pvdid_seq = -1;
+static int hf_icmpv6_opt_pvdid_h = -1;
+static int hf_icmpv6_opt_pvdid_l = -1;
+static int hf_icmpv6_opt_pvdid_reserved = -1;
+static int hf_icmpv6_opt_pvdid_lifetime = -1;
+
 /* RFC 2710: Multicast Listener Discovery for IPv6 */
 static int hf_icmpv6_mld_mrd = -1;
 static int hf_icmpv6_mld_multicast_address = -1;
@@ -926,6 +933,8 @@ static const true_false_string tfs_ni_flag_a = {
 #define ND_OPT_AUTH_BORDER_ROUTER       35
 #define ND_OPT_6CIO                     36
 
+#define	ND_OPT_PVDID			253	/* waiting for IANA attribution */
+
 static const value_string option_vals[] = {
 /*  1 */   { ND_OPT_SOURCE_LINKADDR,           "Source link-layer address" },
 /*  2 */   { ND_OPT_TARGET_LINKADDR,           "Target link-layer address" },
@@ -966,7 +975,8 @@ static const value_string option_vals[] = {
    { 138,                              "CARD Request" },                           /* [RFC4065] */
    { 139,                              "CARD Reply" },                             /* [RFC4065] */
 /* 140-252 Unassigned */
-   { 253,                              "RFC3692-style Experiment 1" },             /* [RFC4727] */
+   // { 253,                              "RFC3692-style Experiment 1" },             /* [RFC4727] */
+/* 253 */  { ND_OPT_PVDID,                      "PVD ID Experiment" },             /* [IETF-DRAFT] */
    { 254,                              "RFC3692-style Experiment 2" },             /* [RFC4727] */
    { 0,                                NULL }
 };
@@ -1299,6 +1309,22 @@ static const value_string rdnss_infinity[] = {
     { 0, NULL}
 };
 
+/* ======================================================================= */
+static void add_standalone_guint8(proto_tree *tree, int hfindex, guint8 anint)
+{
+    tvbuff_t *tvb;
+
+    if ((tvb = tvb_new_real_data(&anint, 1, 1)) == NULL) {
+        // TODO : log an error
+        return;
+    }
+
+    proto_tree_add_item(tree, hfindex, tvb, 0, 1, ENC_HOST_ENDIAN);
+
+    tvb_free(tvb);
+}
+
+/* ======================================================================= */
 static int
 dissect_contained_icmpv6(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 {
@@ -2261,6 +2287,41 @@ dissect_icmpv6_nd_opt(tvbuff_t *tvb, int offset, packet_info *pinfo, proto_tree 
                 }
                 break;
             }
+	    case ND_OPT_PVDID :	/* Multi Provisioning Domains Option (253 : waiting for IANA) */
+	    {
+                int dnssl_len;
+                const guchar *dnssl_name;
+
+                guint8 seq, h, l;
+                guint16 placeHolder, reserved;
+
+                placeHolder = tvb_get_guint16(tvb, opt_offset, ENC_HOST_ENDIAN);
+                opt_offset += 2;
+
+                seq = (placeHolder & 0xF000) >> 12;
+                h = (placeHolder & 0x0800) >> 11;
+                l = (placeHolder & 0x0400) >> 10;
+                reserved = placeHolder & 0x03FF;
+
+                /* PVDID Seq */
+                add_standalone_guint8(icmp6opt_tree, hf_icmpv6_opt_pvdid_seq, seq);
+                /* PVDID H */
+                add_standalone_guint8(icmp6opt_tree, hf_icmpv6_opt_pvdid_h, h);
+                /* PVDID L */
+                add_standalone_guint8(icmp6opt_tree, hf_icmpv6_opt_pvdid_l, l);
+                /* PVDID Reserved */
+                add_standalone_guint8(icmp6opt_tree, hf_icmpv6_opt_pvdid_reserved, reserved);
+                /* PVDID Lifetime */
+                proto_tree_add_item(icmp6opt_tree, hf_icmpv6_opt_pvdid_lifetime, tvb, opt_offset, 4, ENC_BIG_ENDIAN);
+                opt_offset += 4;
+                /* PVDID FQDN */
+                used_bytes = get_dns_name(tvb, opt_offset, 0, opt_offset, &dnssl_name, &dnssl_len);
+                proto_tree_add_string(icmp6opt_tree, hf_icmpv6_opt_pvdid, tvb, opt_offset, used_bytes, format_text(wmem_packet_scope(), dnssl_name, dnssl_len));
+                proto_item_append_text(ti, " %s", dnssl_name);
+                opt_offset += used_bytes;
+
+		break;
+	    }
             case ND_OPT_PROXY_SIGNATURE: /* Proxy Signature Option (32) */
             {
                 int par_len;
@@ -4896,6 +4957,24 @@ proto_register_icmpv6(void)
             NULL, HFILL }},
         { &hf_icmpv6_opt_dnssl,
           { "Domain Names", "icmpv6.opt.dnssl", FT_STRING, BASE_NONE, NULL, 0x0,
+            NULL, HFILL }},
+        { &hf_icmpv6_opt_pvdid,
+          { "PvD ID", "icmpv6.opt.pvdid.name", FT_STRING, BASE_NONE, NULL, 0x0,
+            NULL, HFILL }},
+        { &hf_icmpv6_opt_pvdid_seq,
+          { "PvD sequence number", "icmpv6.opt.pvdid.seq", FT_UINT8, BASE_DEC, NULL, 0x0,
+            NULL, HFILL }},
+        { &hf_icmpv6_opt_pvdid_h,
+          { "PvD Http flag", "icmpv6.opt.pvdid.h", FT_UINT8, BASE_DEC, NULL, 0x0,
+            NULL, HFILL }},
+        { &hf_icmpv6_opt_pvdid_l,
+          { "PvD legacy flag", "icmpv6.opt.pvdid.l", FT_UINT8, BASE_DEC, NULL, 0x0,
+            NULL, HFILL }},
+        { &hf_icmpv6_opt_pvdid_reserved,
+          { "PvD reserved field", "icmpv6.opt.pvdid.reserved", FT_UINT16, BASE_DEC, NULL, 0x0,
+            NULL, HFILL }},
+        { &hf_icmpv6_opt_pvdid_lifetime,
+          { "PvD lifetime", "icmpv6.opt.pvdid.lifetime", FT_UINT32, BASE_DEC|BASE_VALS_NO_UNKNOWN, VALS(dnssl_infinity), 0x0,
             NULL, HFILL }},
         { &hf_icmpv6_opt_aro_status,
           { "Status", "icmpv6.opt.aro.status", FT_UINT8, BASE_DEC, VALS(nd_opt_6lowpannd_status_val), 0x00,
