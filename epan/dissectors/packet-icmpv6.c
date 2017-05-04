@@ -2310,10 +2310,11 @@ dissect_icmpv6_nd_opt(tvbuff_t *tvb, int offset, packet_info *pinfo, proto_tree 
                 guint8 seq, h, l;
                 guint16 placeHolder, reserved;
 
+                // ENC_HOST_ENDIAN should prevent any bits reordering
                 placeHolder = tvb_get_guint16(tvb, opt_offset, ENC_HOST_ENDIAN);
                 opt_offset += 2;
 
-                seq = (placeHolder & 0xF000) >> 12;
+                seq = ntohs((placeHolder & 0xF000) >> 12);
                 h = (placeHolder & 0x0800) >> 11;
                 l = (placeHolder & 0x0400) >> 10;
                 reserved = placeHolder & 0x03FF;
