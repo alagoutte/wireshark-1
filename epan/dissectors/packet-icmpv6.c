@@ -2306,20 +2306,21 @@ dissect_icmpv6_nd_opt(tvbuff_t *tvb, int offset, packet_info *pinfo, proto_tree 
             }
 	    case ND_OPT_PVDID :	/* Multi Provisioning Domains Option (253 : waiting for IANA) */
 	    {
-                int dnssl_len;
-                const guchar *dnssl_name;
+                int pvd_name_len;
+                const guchar *pvd_name;
 
                 guint8 seq, h, l;
-                guint16 placeHolder, reserved;
+                guint16 reserved;
+                guint16 placeHolder;
 
                 // ENC_HOST_ENDIAN should prevent any bits reordering
                 placeHolder = tvb_get_guint16(tvb, opt_offset, ENC_HOST_ENDIAN);
                 opt_offset += 2;
 
-                seq = ntohs((placeHolder & 0xF000) >> 12);
-                h = (placeHolder & 0x0800) >> 11;
-                l = (placeHolder & 0x0400) >> 10;
-                reserved = placeHolder & 0x03FF;
+                seq = placeHolder & 0x000F;
+                h = (placeHolder & 0x0010) >> 4;
+                l = (placeHolder & 0x0020) >> 5;
+                reserved = (placeHolder & 0xFD00) >> 6;
 
                 /* PVDID Seq */
                 add_standalone_guint8(icmp6opt_tree, hf_icmpv6_opt_pvdid_seq, seq);
@@ -2333,10 +2334,11 @@ dissect_icmpv6_nd_opt(tvbuff_t *tvb, int offset, packet_info *pinfo, proto_tree 
                 proto_tree_add_item(icmp6opt_tree, hf_icmpv6_opt_pvdid_lifetime, tvb, opt_offset, 4, ENC_BIG_ENDIAN);
                 opt_offset += 4;
                 /* PVDID FQDN */
-                used_bytes = get_dns_name(tvb, opt_offset, 0, opt_offset, &dnssl_name, &dnssl_len);
-                proto_tree_add_string(icmp6opt_tree, hf_icmpv6_opt_pvdid, tvb, opt_offset, used_bytes, format_text(wmem_packet_scope(), dnssl_name, dnssl_len));
-                proto_item_append_text(ti, " %s", dnssl_name);
-                opt_offset += used_bytes;
+                used_bytes = get_dns_name(tvb, opt_offset, 0, opt_offset, &pvd_name, &pvd_name_len);
+                proto_tree_add_string(icmp6opt_tree, hf_icmpv6_opt_pvdid, tvb, opt_offset, used_bytes, format_text(wmem_packet_scope(), pvd_name, pvd_name_len));
+                proto_item_append_text(ti, " %s", pvd_name);
+
+                opt_offset += offset + opt_len;
 
 		break;
 	    }
