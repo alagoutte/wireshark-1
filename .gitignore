@@ -10,6 +10,7 @@
 
 # Compiled or generated source #
 ################################
+Session*vim
 *.dll
 *.exe
 *.la
