@@ -37,6 +37,8 @@
 
 #include "math.h"
 
+#include <arpa/inet.h>
+
 #include <epan/packet.h>
 #include <epan/in_cksum.h>
 #include <epan/ipproto.h>
