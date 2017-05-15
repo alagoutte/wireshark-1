@@ -4985,7 +4985,7 @@ proto_register_icmpv6(void)
           { "PvD sequence number", "icmpv6.opt.pvdid.seq", FT_UINT8, BASE_DEC, NULL, 0x0,
             NULL, HFILL }},
         { &hf_icmpv6_opt_pvdid_h,
-          { "PvD Http flag", "icmpv6.opt.pvdid.h", FT_UINT8, BASE_DEC, NULL, 0x0,
+          { "PvD HTTP flag", "icmpv6.opt.pvdid.h", FT_UINT8, BASE_DEC, NULL, 0x0,
             NULL, HFILL }},
         { &hf_icmpv6_opt_pvdid_l,
           { "PvD legacy flag", "icmpv6.opt.pvdid.l", FT_UINT8, BASE_DEC, NULL, 0x0,
