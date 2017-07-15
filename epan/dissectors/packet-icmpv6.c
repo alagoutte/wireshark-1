@@ -2311,16 +2311,20 @@ dissect_icmpv6_nd_opt(tvbuff_t *tvb, int offset, packet_info *pinfo, proto_tree 
 
                 guint8 seq, h, l;
                 guint16 reserved;
-                guint16 placeHolder;
+                guint8 placeHolder;
+                guint8 placeHolder2;
 
-                // ENC_HOST_ENDIAN should prevent any bits reordering
-                placeHolder = tvb_get_guint16(tvb, opt_offset, ENC_HOST_ENDIAN);
-                opt_offset += 2;
+                placeHolder = tvb_get_guint8(tvb, opt_offset);
+                opt_offset += 1;
 
-                seq = placeHolder & 0x000F;
-                h = (placeHolder & 0x0010) >> 4;
-                l = (placeHolder & 0x0020) >> 5;
-                reserved = (placeHolder & 0xFD00) >> 6;
+                seq = (placeHolder >> 4) & 0x0F;
+                h = (placeHolder >> 3) & 0x01;
+                l = (placeHolder >> 2) & 0x01;
+
+                placeHolder2 = tvb_get_guint8(tvb, opt_offset);
+                opt_offset += 1;
+
+                reserved = (placeHolder & 0x03) << 8 | placeHolder2;
 
                 /* PVDID Seq */
                 add_standalone_guint8(icmp6opt_tree, hf_icmpv6_opt_pvdid_seq, seq);
