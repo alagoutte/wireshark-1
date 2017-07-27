@@ -254,7 +254,6 @@ static int hf_icmpv6_opt_pvdid_seq = -1;
 static int hf_icmpv6_opt_pvdid_h = -1;
 static int hf_icmpv6_opt_pvdid_l = -1;
 static int hf_icmpv6_opt_pvdid_reserved = -1;
-static int hf_icmpv6_opt_pvdid_lifetime = -1;
 
 /* RFC 2710: Multicast Listener Discovery for IPv6 */
 static int hf_icmpv6_mld_mrd = -1;
@@ -2306,43 +2305,52 @@ dissect_icmpv6_nd_opt(tvbuff_t *tvb, int offset, packet_info *pinfo, proto_tree 
             }
 	    case ND_OPT_PVDID :	/* Multi Provisioning Domains Option (253 : waiting for IANA) */
 	    {
-                int pvd_name_len;
-                const guchar *pvd_name;
+                int len;
+		int i;
+		gchar pvdname[256 + 8];	/* PVDNAMSIZE + 8 (padding) */
+		gchar *pt = pvdname;
 
-                guint8 seq, h, l;
+                guint8 h, l;
+		guint16 flags;
+		guint16 seq;
                 guint16 reserved;
-                guint8 placeHolder;
-                guint8 placeHolder2;
 
-                placeHolder = tvb_get_guint8(tvb, opt_offset);
-                opt_offset += 1;
+                flags = tvb_get_ntohs(tvb, opt_offset);
+                opt_offset += 2;
 
-                seq = (placeHolder >> 4) & 0x0F;
-                h = (placeHolder >> 3) & 0x01;
-                l = (placeHolder >> 2) & 0x01;
+		seq = tvb_get_ntohs(tvb, opt_offset);
+		opt_offset += 2;
 
-                placeHolder2 = tvb_get_guint8(tvb, opt_offset);
-                opt_offset += 1;
+                h = (flags >> 15) & 0x01;
+                l = (flags >> 14) & 0x01;
+		reserved = flags & 0x3FFF;
 
-                reserved = (placeHolder & 0x03) << 8 | placeHolder2;
+		len = opt_len - 6;
+		if (len >= (int) sizeof(pvdname)) {
+			len = 256;
+		}
+		for (i = 0; i < len; i++) {
+			*pt++ = tvb_get_guint8(tvb, opt_offset++);
+		}
+		pvdname[len - 1] = '\0';
+		len = strlen(pvdname);
 
-                /* PVDID Seq */
-                add_standalone_guint8(icmp6opt_tree, hf_icmpv6_opt_pvdid_seq, seq);
                 /* PVDID H */
                 add_standalone_guint8(icmp6opt_tree, hf_icmpv6_opt_pvdid_h, h);
                 /* PVDID L */
                 add_standalone_guint8(icmp6opt_tree, hf_icmpv6_opt_pvdid_l, l);
                 /* PVDID Reserved */
                 add_standalone_guint16(icmp6opt_tree, hf_icmpv6_opt_pvdid_reserved, reserved);
-                /* PVDID Lifetime */
-                proto_tree_add_item(icmp6opt_tree, hf_icmpv6_opt_pvdid_lifetime, tvb, opt_offset, 4, ENC_BIG_ENDIAN);
-                opt_offset += 4;
+                /* PVDID Seq */
+                add_standalone_guint16(icmp6opt_tree, hf_icmpv6_opt_pvdid_seq, seq);
                 /* PVDID FQDN */
-                used_bytes = get_dns_name(tvb, opt_offset, 0, opt_offset, &pvd_name, &pvd_name_len);
-                proto_tree_add_string(icmp6opt_tree, hf_icmpv6_opt_pvdid, tvb, opt_offset, used_bytes, format_text(wmem_packet_scope(), pvd_name, pvd_name_len));
-                proto_item_append_text(ti, " %s", pvd_name);
-
-                opt_offset += offset + opt_len;
+                proto_tree_add_string(
+			icmp6opt_tree,
+			hf_icmpv6_opt_pvdid,
+			tvb, opt_offset,
+			opt_len - 6,
+			format_text(wmem_packet_scope(), pvdname, len));
+                proto_item_append_text(ti, " %s", pvdname);
 
 		break;
 	    }
@@ -4986,7 +4994,7 @@ proto_register_icmpv6(void)
           { "PvD ID", "icmpv6.opt.pvdid.name", FT_STRING, BASE_NONE, NULL, 0x0,
             NULL, HFILL }},
         { &hf_icmpv6_opt_pvdid_seq,
-          { "PvD sequence number", "icmpv6.opt.pvdid.seq", FT_UINT8, BASE_DEC, NULL, 0x0,
+          { "PvD sequence number", "icmpv6.opt.pvdid.seq", FT_UINT16, BASE_DEC, NULL, 0x0,
             NULL, HFILL }},
         { &hf_icmpv6_opt_pvdid_h,
           { "PvD HTTP flag", "icmpv6.opt.pvdid.h", FT_UINT8, BASE_DEC, NULL, 0x0,
@@ -4996,9 +5004,6 @@ proto_register_icmpv6(void)
             NULL, HFILL }},
         { &hf_icmpv6_opt_pvdid_reserved,
           { "PvD reserved field", "icmpv6.opt.pvdid.reserved", FT_UINT16, BASE_DEC, NULL, 0x0,
-            NULL, HFILL }},
-        { &hf_icmpv6_opt_pvdid_lifetime,
-          { "PvD lifetime", "icmpv6.opt.pvdid.lifetime", FT_UINT32, BASE_DEC|BASE_VALS_NO_UNKNOWN, VALS(dnssl_infinity), 0x0,
             NULL, HFILL }},
         { &hf_icmpv6_opt_aro_status,
           { "Status", "icmpv6.opt.aro.status", FT_UINT8, BASE_DEC, VALS(nd_opt_6lowpannd_status_val), 0x00,
